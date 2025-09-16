@@ -9,13 +9,6 @@ add_executable(stock_walk_tests
     ../src/stockWalk.cu  # Include the source file to test
 )
 
-# Set target properties for CUDA
-set_target_properties(stock_walk_tests PROPERTIES
-    CUDA_SEPARABLE_COMPILATION ON
-    CUDA_RESOLVE_DEVICE_SYMBOLS ON
-    CUDA_ARCHITECTURES "75;80;86"  # Match your GPU architecture
-)
-
 # Link with Catch2
 target_link_libraries(stock_walk_tests 
     PRIVATE 
@@ -33,11 +26,6 @@ target_include_directories(stock_walk_tests
 target_compile_definitions(stock_walk_tests PRIVATE 
     TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data"
     DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../data"  # For compatibility with existing code
-)
-
-# Set output directory
-set_target_properties(stock_walk_tests PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/test
 )
 
 # Register test with CTest

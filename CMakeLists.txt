@@ -1,18 +1,16 @@
-cmake_minimum_required(VERSION 3.18)  # Minimum version for CUDA support
+cmake_minimum_required(VERSION 3.6)  # Minimum version for CUDA support
 
 # Set the project name and languages
 project(BlogStockWalk LANGUAGES CXX CUDA)
+
+include(${CMAKE_BINARY_DIR}/conan_toolchain.cmake OPTIONAL)
+find_package(Catch2 REQUIRED)
 
 # Set C++ standard
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Set CUDA standard
-set(CMAKE_CUDA_STANDARD 17)
-set(CMAKE_CUDA_STANDARD_REQUIRED ON)
-
-# Find Conan packages
-find_package(Catch2 QUIET)
+set(CMAKE_CUDA_ARCHITECTURES 86)
 
 # Set CUDA architecture (adjust based on your GPU)
 # Using widely supported architectures for compatibility
@@ -26,11 +24,9 @@ message(STATUS "Data directory: ${DATA_DIR}")
 add_subdirectory(src)
 add_subdirectory(test)
 
-# Optional: Add testing if Catch2 is available
-if(Catch2_FOUND)
-    enable_testing()
-    # add_subdirectory(test)  # Uncomment when you add tests
-endif()
+
+enable_testing()
+
 
 # Print configuration summary
 message(STATUS "=== Build Configuration ===")
