@@ -20,60 +20,6 @@
     } while(0)
 
 
-
-
-// Moving Average CUDA Kernel
-// __global__ void moving_average_kernel(float* prices, float* moving_avg, int size, int window_size) {
-//     int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    
-//     if (idx >= size) return;
-
-//     // whoami();
-    
-//     // Calculate moving average for current position
-//     // if (idx >= window_size - 1) {
-//     //     float sum = 0.0f;
-//     //     for (int i = 0; i < window_size; i++) {
-//     //         sum += prices[idx - i];
-//     //     }
-//     //     moving_avg[idx] = sum / window_size;
-//     // } else {
-//     //     // Not enough data for full window
-//     //     moving_avg[idx] = 0.0f;
-//     // }
-//     do_dual_long_moving_average(idx, prices, moving_avg, window_size);
-// }
-
-// Signal Detection CUDA Kernel
-__global__ void detect_signals(float* prices, float* moving_avg, int* signals, int size, int window_size) {
-    int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    
-    if (idx >= size || idx < window_size) return;
-    
-    // Get current and previous values
-    float current_price = prices[idx];
-    float previous_price = prices[idx - 1];
-    float current_ma = moving_avg[idx];
-    float previous_ma = moving_avg[idx - 1];
-    
-    // Signal detection logic:
-    // BUY (1): Price rising and above moving average
-    // SELL (-1): Price falling and below moving average  
-    // HOLD (0): Otherwise
-    
-    int signal = 0; // Default HOLD
-    
-    if (current_ma > 0.0f && previous_ma > 0.0f) { // Ensure valid moving averages
-        if (current_price > previous_price && current_price > current_ma) {
-            signal = 1; // BUY signal
-        } else if (current_price < previous_price && current_price < current_ma) {
-            signal = -1; // SELL signal
-        }
-    }
-    
-    signals[idx] = signal;
-}
-
 int main() {
     // Configuration - use CMake-defined DATA_DIR
 #ifdef DATA_DIR

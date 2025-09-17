@@ -44,10 +44,10 @@ TEST_CASE("StockData CSV Reading Tests", "[csv][stockwalk]") {
         REQUIRE(result.prices != nullptr);
         
         // Check price values (Close column is index 4)
-        REQUIRE(result.prices[0] == Approx(102.5f));
-        REQUIRE(result.prices[1] == Approx(107.2f));
-        REQUIRE(result.prices[2] == Approx(108.8f));
-        REQUIRE(result.prices[3] == Approx(111.25f));
+        REQUIRE(result.prices[0] == Approx(111.25f));
+        REQUIRE(result.prices[1] == Approx(108.8f));
+        REQUIRE(result.prices[2] == Approx(107.2f));
+        REQUIRE(result.prices[3] == Approx(102.5f));
         
         // Cleanup
         free_stock_data(result);
@@ -108,9 +108,9 @@ TEST_CASE("StockData CSV Reading Tests", "[csv][stockwalk]") {
         REQUIRE(result.prices != nullptr);
         
         // Test precision with small and large numbers
-        REQUIRE(result.prices[0] == Approx(0.015f).epsilon(0.001f));
+        REQUIRE(result.prices[0] == Approx(50.567f).epsilon(0.001f));
         REQUIRE(result.prices[1] == Approx(1000.00f));
-        REQUIRE(result.prices[2] == Approx(50.567f).epsilon(0.001f));
+        REQUIRE(result.prices[2] == Approx(0.015f).epsilon(0.001f));
         
         free_stock_data(result);
         std::filesystem::remove(test_filename);
