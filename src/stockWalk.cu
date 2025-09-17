@@ -5,6 +5,7 @@
 #include <sstream>
 #include <string>
 #include <cstdlib>
+#include <algorithm>
 
 // Function to read CSV data
 StockData read_csv_data(const char* filename) {
@@ -30,6 +31,8 @@ StockData read_csv_data(const char* filename) {
     }
     
     file.close();
+
+    std::reverse(prices.begin(), prices.end()); // Reverse the prices vector
     
     StockData data;
     data.size = prices.size();
@@ -53,19 +56,19 @@ void free_stock_data(StockData& data) {
 
 
 // Function to print signals with dates (sample)
-void print_signals(float* prices, float* moving_avg, int* signals, int size, int window_size) {
+void print_signals(float* prices, float* long_moving_avg, float* short_moving_avg, int* signals, int size, int window_size) {
     printf("\n=== STOCK SIGNAL ANALYSIS ===\n");
     printf("Window Size: %d\n", window_size);
     printf("Total Data Points: %d\n", size);
     printf("\nSignal Legend: BUY(1), SELL(-1), HOLD(0)\n");
-    printf("%-8s %-10s %-10s %-8s\n", "Index", "Price", "MovAvg", "Signal");
+    printf("%-8s %-10s %-10s %-10s %-8s\n", "Index", "Price", "LongMovAvg", "ShortMovAvg", "Signal");
     printf("----------------------------------------\n");
     
     int buy_count = 0, sell_count = 0, hold_count = 0;
     
     // Print first few and last few signals
     for (int i = window_size; i < std::min(size, window_size + 10); i++) {
-        printf("%-8d %-10.2f %-10.2f %-8d\n", i, prices[i], moving_avg[i], signals[i]);
+        printf("%-8d %-10.2f %-10.2f %-10.2f %-8d\n", i, prices[i], long_moving_avg[i], short_moving_avg[i], signals[i]);
         if (signals[i] == 1) buy_count++;
         else if (signals[i] == -1) sell_count++;
         else hold_count++;
@@ -74,7 +77,7 @@ void print_signals(float* prices, float* moving_avg, int* signals, int size, int
     if (size > window_size + 20) {
         printf("...\n");
         for (int i = size - 10; i < size; i++) {
-            printf("%-8d %-10.2f %-10.2f %-8d\n", i, prices[i], moving_avg[i], signals[i]);
+            printf("%-8d %-10.2f %-10.2f %-10.2f %-8d\n", i, prices[i], long_moving_avg[i], short_moving_avg[i], signals[i]);
             if (signals[i] == 1) buy_count++;
             else if (signals[i] == -1) sell_count++;
             else hold_count++;

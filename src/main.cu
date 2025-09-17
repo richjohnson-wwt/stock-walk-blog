@@ -6,6 +6,7 @@
 #include <math.h>
 #include <iostream>
 #include "stockWalk.cuh"
+#include "calc.cuh"
 
 // CUDA error checking macro
 #define CUDA_CHECK(call) \
@@ -18,24 +19,30 @@
         } \
     } while(0)
 
+
+
+
 // Moving Average CUDA Kernel
-__global__ void moving_average_kernel(float* prices, float* moving_avg, int size, int window_size) {
-    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+// __global__ void moving_average_kernel(float* prices, float* moving_avg, int size, int window_size) {
+//     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     
-    if (idx >= size) return;
+//     if (idx >= size) return;
+
+//     // whoami();
     
-    // Calculate moving average for current position
-    if (idx >= window_size - 1) {
-        float sum = 0.0f;
-        for (int i = 0; i < window_size; i++) {
-            sum += prices[idx - i];
-        }
-        moving_avg[idx] = sum / window_size;
-    } else {
-        // Not enough data for full window
-        moving_avg[idx] = 0.0f;
-    }
-}
+//     // Calculate moving average for current position
+//     // if (idx >= window_size - 1) {
+//     //     float sum = 0.0f;
+//     //     for (int i = 0; i < window_size; i++) {
+//     //         sum += prices[idx - i];
+//     //     }
+//     //     moving_avg[idx] = sum / window_size;
+//     // } else {
+//     //     // Not enough data for full window
+//     //     moving_avg[idx] = 0.0f;
+//     // }
+//     do_dual_long_moving_average(idx, prices, moving_avg, window_size);
+// }
 
 // Signal Detection CUDA Kernel
 __global__ void detect_signals(float* prices, float* moving_avg, int* signals, int size, int window_size) {
@@ -74,7 +81,8 @@ int main() {
 #else
     std::string csv_filename = "../../../data/stock_prices.csv";  // Fallback path
 #endif
-    const int window_size = 20; // 20-day moving average
+    const int long_window_size = 50; // 50-day moving average
+    const int short_window_size = 20; // 20-day moving average
     
     printf("=== CUDA Stock Signal Analysis ===\n");
     printf("Reading TSLA data from: %s\n", csv_filename.c_str());
@@ -89,11 +97,12 @@ int main() {
     }
     
     // Allocate device memory
-    float *d_prices, *d_moving_avg;
+    float *d_prices, *d_long_moving_avg, *d_short_moving_avg;
     int *d_signals;
     
     CUDA_CHECK(cudaMalloc(&d_prices, data.size * sizeof(float)));
-    CUDA_CHECK(cudaMalloc(&d_moving_avg, data.size * sizeof(float)));
+    CUDA_CHECK(cudaMalloc(&d_long_moving_avg, data.size * sizeof(float)));
+    CUDA_CHECK(cudaMalloc(&d_short_moving_avg, data.size * sizeof(float)));
     CUDA_CHECK(cudaMalloc(&d_signals, data.size * sizeof(int)));
     
     // Copy data to device
@@ -111,20 +120,31 @@ int main() {
     cudaEventCreate(&start);
     cudaEventCreate(&stop);
     
-    // Launch moving average kernel
+    // Launch long moving average kernel
     cudaEventRecord(start);
-    moving_average_kernel<<<gridSize, blockSize>>>(d_prices, d_moving_avg, data.size, window_size);
+    dual_long_moving_average_kernel<<<gridSize, blockSize>>>(d_prices, d_long_moving_avg, data.size, long_window_size);
     CUDA_CHECK(cudaDeviceSynchronize());
     cudaEventRecord(stop);
-    cudaEventSynchronize(stop);
+    cudaEventSynchronize(stop);    
     
-    float ma_time;
-    cudaEventElapsedTime(&ma_time, start, stop);
-    printf("Moving Average kernel completed in %.3f ms\n", ma_time);
+    float long_ma_time;
+    cudaEventElapsedTime(&long_ma_time, start, stop);
+    printf("Long Moving Average kernel completed in %.3f ms\n", long_ma_time);
+
+    // Launch short moving average kernel
+    cudaEventRecord(start);
+    dual_short_moving_average_kernel<<<gridSize, blockSize>>>(d_prices, d_short_moving_avg, data.size, short_window_size);
+    CUDA_CHECK(cudaDeviceSynchronize());
+    cudaEventRecord(stop);
+    cudaEventSynchronize(stop);    
+    
+    float short_ma_time;
+    cudaEventElapsedTime(&short_ma_time, start, stop);
+    printf("Short Moving Average kernel completed in %.3f ms\n", short_ma_time);
     
     // Launch signal detection kernel
     cudaEventRecord(start);
-    detect_signals<<<gridSize, blockSize>>>(d_prices, d_moving_avg, d_signals, data.size, window_size);
+    detect_moving_average_crossover<<<gridSize, blockSize>>>(d_prices, d_long_moving_avg, d_short_moving_avg, d_signals, data.size, long_window_size, short_window_size);
     CUDA_CHECK(cudaDeviceSynchronize());
     cudaEventRecord(stop);
     cudaEventSynchronize(stop);
@@ -132,25 +152,29 @@ int main() {
     float signal_time;
     cudaEventElapsedTime(&signal_time, start, stop);
     printf("Signal Detection kernel completed in %.3f ms\n", signal_time);
-    printf("Total GPU computation time: %.3f ms\n", ma_time + signal_time);
+    printf("Total GPU computation time: %.3f ms\n", long_ma_time + short_ma_time + signal_time);
     
     // Allocate host memory for results
-    float* h_moving_avg = (float*)malloc(data.size * sizeof(float));
+    float* h_long_moving_avg = (float*)malloc(data.size * sizeof(float));
+    float* h_short_moving_avg = (float*)malloc(data.size * sizeof(float));
     int* h_signals = (int*)malloc(data.size * sizeof(int));
     
     // Copy results back to host
-    CUDA_CHECK(cudaMemcpy(h_moving_avg, d_moving_avg, data.size * sizeof(float), cudaMemcpyDeviceToHost));
+    CUDA_CHECK(cudaMemcpy(h_long_moving_avg, d_long_moving_avg, data.size * sizeof(float), cudaMemcpyDeviceToHost));
+    CUDA_CHECK(cudaMemcpy(h_short_moving_avg, d_short_moving_avg, data.size * sizeof(float), cudaMemcpyDeviceToHost));
     CUDA_CHECK(cudaMemcpy(h_signals, d_signals, data.size * sizeof(int), cudaMemcpyDeviceToHost));
     
     // Print results
-    print_signals(data.prices, h_moving_avg, h_signals, data.size, window_size);
+    print_signals(data.prices, h_long_moving_avg, h_short_moving_avg, h_signals, data.size, long_window_size);
     
     // Cleanup
     cudaFree(d_prices);
-    cudaFree(d_moving_avg);
+    cudaFree(d_long_moving_avg);
+    cudaFree(d_short_moving_avg);
     cudaFree(d_signals);
     free_stock_data(data);
-    free(h_moving_avg);
+    free(h_long_moving_avg);
+    free(h_short_moving_avg);
     free(h_signals);
     cudaEventDestroy(start);
     cudaEventDestroy(stop);
